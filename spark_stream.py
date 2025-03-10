@@ -1,7 +1,7 @@
 import logging
-
+import uuid
 from cassandra.cluster import Cluster
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, functions as F
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType
 
@@ -89,7 +89,7 @@ def connect_to_kafka(spark_conn):
             .format('kafka') \
             .option('kafka.bootstrap.servers', 'localhost:9092') \
             .option('subscribe', 'users_created') \
-            .option('startingOffsets', 'earliest') \
+            .option('startingOffsets', 'latest') \
             .load()
         logging.info("kafka dataframe created successfully")
     except Exception as e:
@@ -132,15 +132,19 @@ def create_selection_df_from_kafka(spark_df):
 
     return sel
 
+def generate_uuid():
+    return str(uuid.uuid4())
 
 if __name__ == "__main__":
     # create spark connection
     spark_conn = create_spark_connection()
 
     if spark_conn is not None:
+        uuid_udf = F.udf(generate_uuid)
         # connect to kafka with spark connection
         spark_df = connect_to_kafka(spark_conn)
         selection_df = create_selection_df_from_kafka(spark_df)
+        selection_df = selection_df.withColumn("id", F.when(F.col("id").isNull(), uuid_udf()).otherwise(F.col("id")))
         session = create_cassandra_connection()
 
         if session is not None:

@@ -1,4 +1,5 @@
 import time
+import uuid
 import json
 import logging
 import requests
@@ -22,6 +23,7 @@ def get_data():
 def format_data(res):
     data = {}
     location = res['location']
+    data['id'] = str(uuid.uuid4())
     data["first_name"] = res["name"]["first"]
     data["last_name"] = res["name"]["last"]
     data["gender"] = res["gender"]
